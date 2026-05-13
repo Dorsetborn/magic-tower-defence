@@ -2,15 +2,21 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Tower Defense</title>
+    <title>Magic Tower Defense - Mana System</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a12; font-family: sans-serif; }
         canvas { display: block; touch-action: none; }
         #ui { position: absolute; top: 20px; left: 20px; color: #00d2ff; pointer-events: none; font-weight: bold; }
+        #mana-container { 
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 20px; background: #222; border: 2px solid #00d2ff; border-radius: 10px; overflow: hidden;
+        }
+        #mana-bar { width: 100%; height: 100%; background: #00d2ff; transition: width 0.1s; }
     </style>
 </head>
 <body>
     <div id="ui">XP: <span id="xp">0</span> | Level: <span id="lvl">1</span></div>
+    <div id="mana-container"><div id="mana-bar"></div></div>
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -18,11 +24,11 @@
         const ctx = canvas.getContext('2d');
         const xpEl = document.getElementById('xp');
         const lvlEl = document.getElementById('lvl');
+        const manaBar = document.getElementById('mana-bar');
         
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // The Center Point
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
 
@@ -30,41 +36,41 @@
         let level = 1;
         let magicPath = [];
         let enemies = [];
+        
+        // Mana Variables
+        let mana = 100;
+        let maxMana = 100;
+        let isDrawing = false;
 
-        // --- COMBINED CONTROLS (MOUSE & TOUCH) ---
-        let isMouseDown = false;
+        // --- CONTROLS ---
+        function startDrawing() { isDrawing = true; magicPath = []; }
+        function stopDrawing() { isDrawing = false; }
 
-        // Mouse Events
-        canvas.addEventListener('mousedown', (e) => {
-            isMouseDown = true;
-            magicPath = []; 
-        });
+        function handleMove(x, y) {
+            if (!isDrawing || mana <= 0) return;
+            
+            magicPath.push({ x: x, y: y, life: 1.0 });
+            checkCollision(x, y);
+            mana -= 1.5; // Cost of drawing
+            if (mana < 0) mana = 0;
+        }
 
-        canvas.addEventListener('mousemove', (e) => {
-            if (!isMouseDown) return;
-            magicPath.push({ x: e.clientX, y: e.clientY, life: 1.0 });
-            checkCollision(e.clientX, e.clientY);
-        });
+        // Mouse
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
+        canvas.addEventListener('mouseup', stopDrawing);
 
-        canvas.addEventListener('mouseup', () => { isMouseDown = false; });
-
-        // Touch Events (Phone)
-        canvas.addEventListener('touchstart', (e) => { 
-            magicPath = []; 
-        }, {passive: false});
-
+        // Touch
+        canvas.addEventListener('touchstart', (e) => { startDrawing(); }, {passive: false});
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            const touch = e.touches[0];
-            magicPath.push({ x: touch.clientX, y: touch.clientY, life: 1.0 });
-            checkCollision(touch.clientX, touch.clientY);
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
         }, {passive: false});
+        canvas.addEventListener('touchend', stopDrawing);
 
-        // --- GAME LOGIC ---
         function checkCollision(tx, ty) {
             enemies.forEach((en, i) => {
-                const dist = Math.hypot(en.x - tx, en.y - ty);
-                if (dist < 30) {
+                if (Math.hypot(en.x - tx, en.y - ty) < 30) {
                     enemies.splice(i, 1);
                     xp += 10;
                     if(xp % 100 === 0) { level++; lvlEl.innerText = level; }
@@ -74,15 +80,10 @@
         }
 
         function spawnEnemy() {
-            // Enemies spawn in a circle around the center
             if (Math.random() < 0.02 + (level * 0.01)) {
                 const angle = Math.random() * Math.PI * 2;
-                const spawnDist = Math.max(canvas.width, canvas.height); 
-                enemies.push({ 
-                    x: centerX + Math.cos(angle) * spawnDist, 
-                    y: centerY + Math.sin(angle) * spawnDist, 
-                    speed: 1 + (level * 0.3) 
-                });
+                const dist = Math.max(canvas.width, canvas.height); 
+                enemies.push({ x: centerX + Math.cos(angle) * dist, y: centerY + Math.sin(angle) * dist, speed: 1 + (level * 0.3) });
             }
         }
 
@@ -90,40 +91,36 @@
             ctx.fillStyle = 'rgba(10, 10, 18, 0.3)'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 1. Draw Tower
+            // Regain Mana if not drawing
+            if (!isDrawing && mana < maxMana) {
+                mana += 0.4; 
+            }
+            manaBar.style.width = (mana / maxMana * 100) + "%";
+
+            // Tower
             ctx.fillStyle = '#444';
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, 30, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#00d2ff';
+            ctx.beginPath(); ctx.arc(centerX, centerY, 30, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = mana > 10 ? '#00d2ff' : '#ff4d4d'; // Tower glows red when low on mana
             ctx.stroke();
 
-            // 2. Draw Magic Path
+            // Magic Path
             ctx.strokeStyle = '#00d2ff';
             ctx.lineWidth = 8;
             ctx.beginPath();
             magicPath.forEach((p, i) => {
                 p.life -= 0.03;
-                if (i === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
+                if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
             });
             ctx.stroke();
             magicPath = magicPath.filter(p => p.life > 0);
 
-            // 3. Update & Draw Enemies
+            // Enemies
             enemies.forEach((en, i) => {
-                const dx = centerX - en.x;
-                const dy = centerY - en.y;
-                const angle = Math.atan2(dy, dx);
+                const angle = Math.atan2(centerY - en.y, centerX - en.x);
                 en.x += Math.cos(angle) * en.speed;
                 en.y += Math.sin(angle) * en.speed;
-
                 ctx.fillStyle = '#ff4d4d';
-                ctx.beginPath();
-                ctx.arc(en.x, en.y, 15, 0, Math.PI * 2);
-                ctx.fill();
-
-                // If enemy hits tower
+                ctx.beginPath(); ctx.arc(en.x, en.y, 15, 0, Math.PI * 2); ctx.fill();
                 if(Math.hypot(centerX - en.x, centerY - en.y) < 30) {
                     enemies.splice(i, 1);
                     xp = Math.max(0, xp - 20);
