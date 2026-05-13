@@ -20,6 +20,14 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        const bgImg = new Image();
+bgImg.src = 'background.png';
+
+const towerImg = new Image();
+towerImg.src = 'tower.png';
+
+const enemyImg = new Image();
+enemyImg.src = 'monster.png';
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const xpEl = document.getElementById('xp');
@@ -99,7 +107,7 @@
 
             // Tower
             ctx.fillStyle = '#444';
-            ctx.beginPath(); ctx.arc(centerX, centerY, 30, 0, Math.PI * 2); ctx.fill();
+            ctx.drawImage(towerImg, centerX - 30, centerY - 30, 60, 60); // We use centerX - 30 so the image's center sits on the tower's actual location
             ctx.strokeStyle = mana > 10 ? '#00d2ff' : '#ff4d4d'; // Tower glows red when low on mana
             ctx.stroke();
 
@@ -120,7 +128,7 @@
                 en.x += Math.cos(angle) * en.speed;
                 en.y += Math.sin(angle) * en.speed;
                 ctx.fillStyle = '#ff4d4d';
-                ctx.beginPath(); ctx.arc(en.x, en.y, 15, 0, Math.PI * 2); ctx.fill();
+                ctx.drawImage(enemyImg, en.x - 15, en.y - 15, 30, 30);
                 if(Math.hypot(centerX - en.x, centerY - en.y) < 30) {
                     enemies.splice(i, 1);
                     xp = Math.max(0, xp - 20);
