@@ -2,10 +2,11 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Magic Tower Defense</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #0a0a12; font-family: sans-serif; }
         canvas { display: block; touch-action: none; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; pointer-events: none; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #00d2ff; pointer-events: none; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -16,19 +17,22 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const xpEl = document.getElementById('xp');
+        const lvlEl = document.getElementById('lvl');
         
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
+        // The Center Point
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
         let xp = 0;
+        let level = 1;
         let magicPath = [];
         let enemies = [];
 
-        // Touch Listeners
-        canvas.addEventListener('touchstart', (e) => {
-            magicPath = []; 
-        }, {passive: false});
-
+        // --- TOUCH CONTROLS ---
+        canvas.addEventListener('touchstart', (e) => { magicPath = []; }, {passive: false});
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
@@ -36,46 +40,75 @@
             checkCollision(touch.clientX, touch.clientY);
         }, {passive: false});
 
+        // --- GAME LOGIC ---
         function checkCollision(tx, ty) {
             enemies.forEach((en, i) => {
                 const dist = Math.hypot(en.x - tx, en.y - ty);
-                if (dist < 20) {
+                if (dist < 30) {
                     enemies.splice(i, 1);
                     xp += 10;
+                    if(xp % 100 === 0) { level++; lvlEl.innerText = level; }
                     xpEl.innerText = xp;
                 }
             });
         }
 
         function spawnEnemy() {
-            if (enemies.length < 5) {
-                enemies.push({ x: Math.random() * canvas.width, y: canvas.height, speed: 2 });
+            // Enemies spawn in a circle around the center
+            if (Math.random() < 0.02 + (level * 0.01)) {
+                const angle = Math.random() * Math.PI * 2;
+                const spawnDist = Math.max(canvas.width, canvas.height); 
+                enemies.push({ 
+                    x: centerX + Math.cos(angle) * spawnDist, 
+                    y: centerY + Math.sin(angle) * spawnDist, 
+                    speed: 1 + (level * 0.3) 
+                });
             }
         }
 
         function animate() {
-            ctx.fillStyle = 'rgba(26, 26, 46, 0.3)'; // Trail effect
+            ctx.fillStyle = 'rgba(10, 10, 18, 0.3)'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Magic Path
+            // 1. Draw Tower
+            ctx.fillStyle = '#444';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 30, 0, Math.PI * 2);
+            ctx.fill();
             ctx.strokeStyle = '#00d2ff';
-            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            // 2. Draw Magic Path
+            ctx.strokeStyle = '#00d2ff';
+            ctx.lineWidth = 8;
             ctx.beginPath();
             magicPath.forEach((p, i) => {
-                p.life -= 0.02;
+                p.life -= 0.03;
                 if (i === 0) ctx.moveTo(p.x, p.y);
                 else ctx.lineTo(p.x, p.y);
             });
             ctx.stroke();
             magicPath = magicPath.filter(p => p.life > 0);
 
-            // Draw Enemies
-            ctx.fillStyle = '#ff4d4d';
-            enemies.forEach(en => {
-                en.y -= en.speed;
+            // 3. Update & Draw Enemies
+            enemies.forEach((en, i) => {
+                const dx = centerX - en.x;
+                const dy = centerY - en.y;
+                const angle = Math.atan2(dy, dx);
+                en.x += Math.cos(angle) * en.speed;
+                en.y += Math.sin(angle) * en.speed;
+
+                ctx.fillStyle = '#ff4d4d';
                 ctx.beginPath();
                 ctx.arc(en.x, en.y, 15, 0, Math.PI * 2);
                 ctx.fill();
+
+                // If enemy hits tower
+                if(Math.hypot(centerX - en.x, centerY - en.y) < 30) {
+                    enemies.splice(i, 1);
+                    xp = Math.max(0, xp - 20);
+                    xpEl.innerText = xp;
+                }
             });
 
             spawnEnemy();
