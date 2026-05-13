@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: sans-serif; }
+        canvas { display: block; touch-action: none; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="ui">XP: <span id="xp">0</span> | Level: <span id="lvl">1</span></div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const xpEl = document.getElementById('xp');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let xp = 0;
+        let magicPath = [];
+        let enemies = [];
+
+        // Touch Listeners
+        canvas.addEventListener('touchstart', (e) => {
+            magicPath = []; 
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            magicPath.push({ x: touch.clientX, y: touch.clientY, life: 1.0 });
+            checkCollision(touch.clientX, touch.clientY);
+        }, {passive: false});
+
+        function checkCollision(tx, ty) {
+            enemies.forEach((en, i) => {
+                const dist = Math.hypot(en.x - tx, en.y - ty);
+                if (dist < 20) {
+                    enemies.splice(i, 1);
+                    xp += 10;
+                    xpEl.innerText = xp;
+                }
+            });
+        }
+
+        function spawnEnemy() {
+            if (enemies.length < 5) {
+                enemies.push({ x: Math.random() * canvas.width, y: canvas.height, speed: 2 });
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(26, 26, 46, 0.3)'; // Trail effect
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Magic Path
+            ctx.strokeStyle = '#00d2ff';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            magicPath.forEach((p, i) => {
+                p.life -= 0.02;
+                if (i === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            });
+            ctx.stroke();
+            magicPath = magicPath.filter(p => p.life > 0);
+
+            // Draw Enemies
+            ctx.fillStyle = '#ff4d4d';
+            enemies.forEach(en => {
+                en.y -= en.speed;
+                ctx.beginPath();
+                ctx.arc(en.x, en.y, 15, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            spawnEnemy();
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
