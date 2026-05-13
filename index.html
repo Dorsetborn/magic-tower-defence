@@ -20,13 +20,24 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        const bgImg = new Image();
-bgImg.src = 'background.png';
+// --- IMAGE LOADING ---
+let imagesLoaded = 0;
+const totalImages = 3;
+
+function imageLoaded() {
+    imagesLoaded++;
+}
+
+const bgImg = new Image();
+bgImg.onload = imageLoaded;
+bgImg.src = 'background.png'; // Make sure this matches your GitHub filename!
 
 const towerImg = new Image();
+towerImg.onload = imageLoaded;
 towerImg.src = 'tower.png';
 
 const enemyImg = new Image();
+enemyImg.onload = imageLoaded;
 enemyImg.src = 'monster.png';
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -96,25 +107,36 @@ enemyImg.src = 'monster.png';
         }
 
         function animate() {
-    // 1. Draw Background
-    if (bgImg.complete) { // Only draw if loaded
-        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    // 1. CLEAR AND DRAW BACKGROUND
+    // We check if images are loaded before drawing
+    if (imagesLoaded >= totalImages) {
+        // This tiles the first square from your background sheet across the screen
+        const tileSize = 128; 
+        for (let x = 0; x < canvas.width; x += tileSize) {
+            for (let y = 0; y < canvas.height; y += tileSize) {
+                // Slicing the first tile (top-left) from your background sheet
+                ctx.drawImage(bgImg, 0, 0, 250, 250, x, y, tileSize, tileSize);
+            }
+        }
     } else {
+        // Fallback color while loading
         ctx.fillStyle = '#0a0a12';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    // Regain Mana
+    // 2. MANA REGEN
     if (!isDrawing && mana < maxMana) {
         mana += 0.4; 
     }
     manaBar.style.width = (mana / maxMana * 100) + "%";
 
-    // 2. Tower (Slicing the middle tower from your sheet)
-    // Parameters: img, sourceX, sourceY, sourceWidth, sourceHeight, destinationX, destinationY, dWidth, dHeight
-    ctx.drawImage(towerImg, 350, 50, 300, 500, centerX - 40, centerY - 70, 80, 120);
+    // 3. TOWER
+    // Drawing the tiered tower from the middle of your sheet
+    if (imagesLoaded >= totalImages) {
+        ctx.drawImage(towerImg, 350, 50, 300, 500, centerX - 40, centerY - 80, 80, 120);
+    }
 
-    // 3. Magic Path
+    // 4. MAGIC PATH
     ctx.strokeStyle = '#00d2ff';
     ctx.lineWidth = 8;
     ctx.lineCap = 'round';
@@ -126,14 +148,16 @@ enemyImg.src = 'monster.png';
     ctx.stroke();
     magicPath = magicPath.filter(p => p.life > 0);
 
-    // 4. Enemies
+    // 5. ENEMIES
     enemies.forEach((en, i) => {
         const angle = Math.atan2(centerY - en.y, centerX - en.x);
         en.x += Math.cos(angle) * en.speed;
         en.y += Math.sin(angle) * en.speed;
 
-        // Draw the first monster from your sheet (The Shambler)
-        ctx.drawImage(enemyImg, 50, 50, 300, 400, en.x - 25, en.y - 25, 50, 50);
+        if (imagesLoaded >= totalImages) {
+            // Slicing the Shambler (first monster)
+            ctx.drawImage(enemyImg, 0, 0, 400, 500, en.x - 30, en.y - 30, 60, 60);
+        }
 
         if(Math.hypot(centerX - en.x, centerY - en.y) < 40) {
             enemies.splice(i, 1);
@@ -143,6 +167,8 @@ enemyImg.src = 'monster.png';
     });
 
     spawnEnemy();
+    requestAnimationFrame(animate);
+}
     requestAnimationFrame(animate);
 }
         animate();
