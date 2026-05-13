@@ -31,8 +31,28 @@
         let magicPath = [];
         let enemies = [];
 
-        // --- TOUCH CONTROLS ---
-        canvas.addEventListener('touchstart', (e) => { magicPath = []; }, {passive: false});
+        // --- COMBINED CONTROLS (MOUSE & TOUCH) ---
+        let isMouseDown = false;
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', (e) => {
+            isMouseDown = true;
+            magicPath = []; 
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isMouseDown) return;
+            magicPath.push({ x: e.clientX, y: e.clientY, life: 1.0 });
+            checkCollision(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mouseup', () => { isMouseDown = false; });
+
+        // Touch Events (Phone)
+        canvas.addEventListener('touchstart', (e) => { 
+            magicPath = []; 
+        }, {passive: false});
+
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
